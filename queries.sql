@@ -66,7 +66,7 @@ WITH RankedTransactions AS (
         store_id,
         gross_transaction_value,
         purchase_time,
-        -- Rank transactions for each store, ordering by purchase time (earliest is rank 1)
+        -- Rank transactions for each store, ordering by purchase time 
         ROW_NUMBER() OVER (
             PARTITION BY store_id
             ORDER BY purchase_time ASC
@@ -118,7 +118,6 @@ LIMIT 1;
 
 -- ==============================================================================
 -- Q7. Create a rank by buyer_id column and filter for only the second purchase.
--- (Ignore refunds here)
 -- ==============================================================================
 WITH RankedPurchases AS (
     SELECT
@@ -150,8 +149,7 @@ WHERE
 -- ==============================================================================
 -- Q8. How will you find the second transaction time per buyer (don't use min/max)
 -- ==============================================================================
--- NOTE: This solution is identical in logic to Q7, as ranking (ROW_NUMBER) is the standard 
--- way to find the Nth transaction without using MIN/MAX.
+
 WITH RankedTransactions AS (
     SELECT
         buyer_id,
@@ -171,3 +169,25 @@ FROM
     RankedTransactions
 WHERE
     purchase_rank = 2; -- Filter for the second transaction time
+
+-- ==============================================================================
+-- Q6. Create a Flag for Refund Eligibility (Within 72 Hours)
+-- Expected Output: Only 1 of the three refunds would be processed.
+-- ==============================================================================
+SELECT
+    buyer_id,
+    purchase_time,
+    refund,
+    -- Calculate refund eligibility using a CASE statement and interval comparison
+    CASE
+        -- If refund is NULL, it was never processed, so it's not applicable
+        WHEN refund IS NULL THEN 'Not Refunded'
+        -- Check if the time difference is less than or equal to 72 hours
+        WHEN (refund - purchase_time) <= INTERVAL '72 hours' THEN 'Refund Processed (Eligible)'
+        -- If the time difference is greater than 72 hours
+        ELSE 'Refund Denied (Too Late)'
+    END AS refund_status_flag
+FROM
+    transactions
+ORDER BY
+    purchase_time;
