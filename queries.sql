@@ -39,3 +39,49 @@ FROM
             COUNT(store_id) >= 5
     ) AS t;
 
+-- ==============================================================================
+-- Q3. For each store, what is the shortest interval (in min) from purchase to refund time?
+-- ==============================================================================
+SELECT
+    store_id,
+    -- Calculate the time difference (refund - purchase_time), extract the difference 
+    -- in seconds (epoch), and divide by 60 to get minutes.
+    MIN(EXTRACT(EPOCH FROM (refund - purchase_time)) / 60) AS shortest_refund_interval_minutes
+FROM
+    transactions
+WHERE
+    -- Only consider transactions that were actually refunded
+    refund IS NOT NULL
+GROUP BY
+    store_id
+ORDER BY
+    store_id;
+
+
+-- ==============================================================================
+-- Q4. What is the gross_transaction_value of every store's first order?
+-- ==============================================================================
+WITH RankedTransactions AS (
+    SELECT
+        store_id,
+        gross_transaction_value,
+        purchase_time,
+        -- Rank transactions for each store, ordering by purchase time (earliest is rank 1)
+        ROW_NUMBER() OVER (
+            PARTITION BY store_id
+            ORDER BY purchase_time ASC
+        ) AS rn
+    FROM
+        transactions
+)
+SELECT
+    store_id,
+    -- Clean the value by removing '$' and casting it to a numeric type
+    CAST(REPLACE(gross_transaction_value, '$', '') AS NUMERIC) AS first_order_value,
+    purchase_time
+FROM
+    RankedTransactions
+WHERE
+    rn = 1 -- Filter for only the first order (rank 1)
+ORDER BY
+    store_id;
