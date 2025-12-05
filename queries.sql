@@ -85,3 +85,89 @@ WHERE
     rn = 1 -- Filter for only the first order (rank 1)
 ORDER BY
     store_id;
+-- ==============================================================================
+-- Q5. What is the most popular item name that buyers order on their first purchase?
+-- ==============================================================================
+WITH BuyerFirstPurchase AS (
+    SELECT
+        t.buyer_id,
+        t.item_id,
+        -- Rank transactions for each buyer, ordering by purchase time (earliest is rank 1)
+        ROW_NUMBER() OVER (
+            PARTITION BY t.buyer_id
+            ORDER BY t.purchase_time ASC
+        ) AS rn
+    FROM
+        transactions AS t
+)
+SELECT
+    i.item_name,
+    COUNT(i.item_name) AS first_purchase_count
+FROM
+    BuyerFirstPurchase AS bfp
+JOIN
+    items AS i ON bfp.item_id = i.item_id
+WHERE
+    bfp.rn = 1  -- Filter for only the first purchase
+GROUP BY
+    i.item_name
+ORDER BY
+    first_purchase_count DESC
+LIMIT 1;
+
+
+-- ==============================================================================
+-- Q7. Create a rank by buyer_id column and filter for only the second purchase.
+-- (Ignore refunds here)
+-- ==============================================================================
+WITH RankedPurchases AS (
+    SELECT
+        buyer_id,
+        purchase_time,
+        item_id,
+        -- Rank purchases for each buyer, ordering by purchase time ascending
+        ROW_NUMBER() OVER (
+            PARTITION BY buyer_id
+            ORDER BY purchase_time ASC
+        ) AS purchase_rank
+    FROM
+        transactions
+    WHERE
+        -- Filter condition to ignore refunded purchases
+        refund IS NULL
+)
+SELECT
+    buyer_id,
+    purchase_time,
+    item_id,
+    purchase_rank
+FROM
+    RankedPurchases
+WHERE
+    purchase_rank = 2; -- Filter for only the second rank
+
+
+-- ==============================================================================
+-- Q8. How will you find the second transaction time per buyer (don't use min/max)
+-- ==============================================================================
+-- NOTE: This solution is identical in logic to Q7, as ranking (ROW_NUMBER) is the standard 
+-- way to find the Nth transaction without using MIN/MAX.
+WITH RankedTransactions AS (
+    SELECT
+        buyer_id,
+        purchase_time,
+        -- Rank all transactions for each buyer
+        ROW_NUMBER() OVER (
+            PARTITION BY buyer_id
+            ORDER BY purchase_time ASC
+        ) AS purchase_rank
+    FROM
+        transactions
+)
+SELECT
+    buyer_id,
+    purchase_time AS second_transaction_time
+FROM
+    RankedTransactions
+WHERE
+    purchase_rank = 2; -- Filter for the second transaction time
